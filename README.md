@@ -2,6 +2,11 @@
 
 原生 Android APP，讓朋友共同收藏台灣吃喝玩樂。Java 17、Android SDK 35、Firebase Authentication / Firestore；最低 Android 8.0。介面使用繁體中文、奶油白與森林綠，首頁以收藏列表為主。
 
+## 網頁示範版 (GitHub Pages)
+
+[開啟網頁示範版](https://ralph19850122.github.io/https-pocket-taiwan-1113.workspace-926599.chatgpt.site-/)
+
+此頁使用 `trip-pocket/dist` 的靜態示範介面，資料存在目前瀏覽器的 localStorage，使用示範資料；不會連接 Firebase，也不會與 Android App 同步。
 ## 試用
 
 交付的 `dist/一起收-debug.apk` 為可側載的測試版。傳到 Android 手機並開啟，允許該來源安裝應用程式，安裝後選「先體驗看看」。這不是 Google Play 正式發行版。
