@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function listDoc(id) { return get(/databases/$(database)/documents/lists/$(id)); }
+    function member(id) { return signedIn() && request.auth.uid in listDoc(id).data.members; }
+    function admin(id) { return signedIn() && listDoc(id).data.admin == request.auth.uid; }
+    function validPlace(d, pid) {
+      return d.keys().hasOnly(['id','name','city','district','address','creator','creatorName','evidence','categories','links','pending','updatedAt'])
+        && d.id == pid && d.name is string && d.name.size() <= 120
+        && d.city is string && d.city.size() <= 20 && d.district is string && d.district.size() <= 20
+        && d.address is string && d.address.size() <= 500
+        && d.creator is string && d.creatorName is string && d.creatorName.size() <= 200
+        && d.evidence is string && d.evidence.size() <= 12000
+        && d.categories is list && d.categories.size() <= 4 && d.categories.hasOnly(['美食','景點','住宿','活動'])
+        && d.links is list && d.links.size() <= 30
+        && d.pending is bool && d.updatedAt is int
+        && (d.pending || (d.name.size() > 0 && d.city.size() > 0 && d.district.size() > 0 && d.categories.size() > 0));
+    }
+    match /lists/{listId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name','admin','members','createdAt'])
+        && request.resource.data.admin == request.auth.uid
+        && request.resource.data.members == [request.auth.uid]
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 50
+        && request.resource.data.createdAt is int;
+      allow update: if admin(listId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+        && request.resource.data.members is list
+        && request.auth.uid in request.resource.data.members
+        && request.resource.data.members.size() <= 100;
+      allow delete: if false;
+      match /places/{placeId} {
+        allow read: if member(listId);
+        allow create: if member(listId) && validPlace(request.resource.data, placeId) && request.resource.data.creator == request.auth.uid;
+        allow update: if member(listId) && validPlace(request.resource.data, placeId)
+          && request.resource.data.creator == resource.data.creator
+          && request.resource.data.creatorName == resource.data.creatorName;
+        allow delete: if member(listId) && (resource.data.creator == request.auth.uid || admin(listId));
+      }
+      match /records/{recordId} {
+        allow read: if member(listId);
+        allow create, update: if member(listId)
+          && request.resource.data.keys().hasOnly(['uid','placeId','name','text','visited','again','updatedAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.placeId is string
+          && recordId == request.resource.data.placeId + '_' + request.auth.uid
+          && existsAfter(/databases/$(database)/documents/lists/$(listId)/places/$(request.resource.data.placeId))
+          && request.resource.data.name is string && request.resource.data.name.size() <= 200
+          && request.resource.data.text is string && request.resource.data.text.size() <= 12000
+          && request.resource.data.visited is bool && request.resource.data.again is bool
+          && request.resource.data.updatedAt is int;
+        allow delete: if member(listId) && resource.data.uid == request.auth.uid;
+      }
+      match /requests/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid || admin(listId));
+        allow create, update: if signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['uid','name','createdAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.name is string && request.resource.data.name.size() <= 200
+          && request.resource.data.createdAt is int;
+        allow delete: if signedIn() && (request.auth.uid == uid || admin(listId));
+      }
+    }
+  }
+}

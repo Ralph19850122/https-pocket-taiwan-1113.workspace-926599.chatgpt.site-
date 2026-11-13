@@ -1,0 +1,10 @@
+.tools/
+.gradle/
+**/build/
+local.properties
+app/google-services.json
+*.jks
+*.keystore
+.idea/
+node_modules/
+*-debug.log
